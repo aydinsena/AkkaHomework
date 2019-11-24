@@ -15,7 +15,7 @@ dependencies {
   testCompile 'junit:junit:4.12'
 }
 
-mainClassName = "com.sena.akka.homework.AkkaQuickstart"
+mainClassName = "com.sena.akka.homework.actor.AkkaStart"
 
 run {
   standardInput = System.in

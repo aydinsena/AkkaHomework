@@ -1,17 +1,16 @@
-/*
-package com.sena.akka.homework;
+package com.sena.akka.homework.actor;
 
 import akka.actor.typed.ActorSystem;
 
 import java.io.IOException;
-public class AkkaQuickstart {
+
+public class AkkaStart {
   public static void main(String[] args) {
     //#actor-system
-    final ActorSystem<GreeterMain.Start> greeterMain = ActorSystem.create(GreeterMain.create(), "helloakka");
-    //#actor-system
+    final ActorSystem<Guardian.Start> guardian = ActorSystem.create(Guardian.create(), "guardian");
 
     //#main-send-messages
-    greeterMain.tell(new GreeterMain.Start("Charles"));
+    guardian.tell(new Guardian.Start("start"));
     //#main-send-messages
 
     try {
@@ -19,8 +18,7 @@ public class AkkaQuickstart {
       System.in.read();
     } catch (IOException ignored) {
     } finally {
-      greeterMain.terminate();
+
     }
   }
 }
-*/

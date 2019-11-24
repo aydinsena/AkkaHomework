@@ -1,5 +1,6 @@
 package com.sena.akka.homework.actor;
 
+import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
@@ -16,64 +17,87 @@ import java.util.List;
 //the reason we didn't create interface in PasswordCrackingWorker class because worker class receives only one type of object
 public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMaster.Command> {
 
-  private List<PasswordCrackingWorker.HashMessage> uncrackedHashes;
-  private List<CrackedPasswordMessage> crackedPasswords;
+    //uncrackedHashes list is used to send PasswordCrackingWorker
+    private List<Guardian.CsvEntry> uncrackedHashes;
+    private List<CrackedPasswordMessage> crackedPasswords;
+    private ActorRef<Worker.WorkCommand> worker;
 
-  protected interface Command {
+    protected interface Command {
 
-  }
-  public static final class CsvHashInput implements Command {
-    public final List<PasswordCrackingWorker.HashMessage> hashMessages;
-
-    public CsvHashInput(List<PasswordCrackingWorker.HashMessage> hashMessages) {
-      this.hashMessages = hashMessages;
-    }
-  }
-
-  public static final class CrackedPasswordMessage implements Command {
-    public final Integer id;
-    public final String name;
-    public final Integer crackedPassword;
-
-
-    public CrackedPasswordMessage(Integer id, String name, Integer crackedPassword) {
-      this.id = id;
-      this.name = name;
-      this.crackedPassword = crackedPassword;
     }
 
-  }
-  public static Behavior<Command> create() {
-    return Behaviors.setup(PasswordCrackingMaster::new);
-  }
+    public static final class CsvHashInput implements Command {
+        // List of csv entries is sent from Guardian and received by PasswordCrackingMaster
+        public final List<Guardian.CsvEntry> csvEntries;
 
-  private PasswordCrackingMaster(ActorContext<Command> context) {
-    super(context);
-     //TODO: create workers
-  }
+        public CsvHashInput(List<Guardian.CsvEntry> csvEntries) {
+            this.csvEntries = csvEntries;
+        }
+    }
+
+    public static final class CrackedPasswordMessage implements Command {
+        public final Integer id;
+        public final String name;
+        public final Integer crackedPassword;
 
 
-  @Override
-  //when it receives any command message
-  public Receive<Command> createReceive() {
-    return newReceiveBuilder()
-            .onMessage(CsvHashInput.class, this::onCsvHashInput)
-            .onMessage(CrackedPasswordMessage.class, this::onCrackedPasswordMessage)
-            .build();
-  }
+        public CrackedPasswordMessage(Integer id, String name, Integer crackedPassword) {
+            this.id = id;
+            this.name = name;
+            this.crackedPassword = crackedPassword;
+        }
 
-  private Behavior<Command> onCsvHashInput(CsvHashInput command) {
-    getContext().getLog().info("Csv received from main!");
-    uncrackedHashes = command.hashMessages;
-    crackedPasswords = new ArrayList<>();
-    // TODO: send messages to all workers
-    return this;
-  }
+    }
 
-  private Behavior<Command> onCrackedPasswordMessage(CrackedPasswordMessage command) {
-    getContext().getLog().info("Received cracked passwords!");
-    // TODO: save cracked password
-    return this;
-  }
+
+    public static Behavior<Command> create() {
+        return Behaviors.setup(PasswordCrackingMaster::new);
+    }
+
+    //executed when PasswordCrackingMaster is created
+    private PasswordCrackingMaster(ActorContext<Command> context) {
+        super(context);
+        //worker created
+        worker = context.spawn(Worker.create(), "worker");
+    }
+
+
+    @Override
+    //when it receives any command message
+    public Receive<Command> createReceive() {
+        return newReceiveBuilder()
+                .onMessage(CsvHashInput.class, this::onCsvHashInput)
+                .onMessage(CrackedPasswordMessage.class, this::onCrackedPasswordMessage)
+                .build();
+    }
+
+    //received by main
+    private Behavior<Command> onCsvHashInput(CsvHashInput command) {
+        getContext().getLog().info("Csv received from main!");
+        //uncrackedHashes is sent to worker one by one that's why we store it here
+        uncrackedHashes = command.csvEntries;
+        crackedPasswords = new ArrayList<>();
+        Guardian.CsvEntry csv = uncrackedHashes.get(0);
+        //send messages to all workers
+        worker.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
+        return this;
+    }
+
+    //received by master (after when cracked password is received by master)
+    private Behavior<Command> onCrackedPasswordMessage(CrackedPasswordMessage command) {
+        getContext().getLog().info("Received cracked passwords!");
+        // save cracked password
+        crackedPasswords.add(command);
+        //remove entry of hash that has been cracked
+        uncrackedHashes.removeIf(x -> x.id.equals(command.id));
+        if (!uncrackedHashes.isEmpty()) {
+            Guardian.CsvEntry csv = uncrackedHashes.get(0);
+            worker.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
+            return this;
+        } else {
+            //TODO: terminate
+            return this;
+        }
+    }
 }
 

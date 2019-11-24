@@ -29,7 +29,9 @@ public class GreeterMain extends AbstractBehavior<GreeterMain.Start> {
 
     @Override
     public Receive<Start> createReceive() {
-        return newReceiveBuilder().onMessage(Start.class, this::onStart).build();
+        return newReceiveBuilder()
+                .onMessage(Start.class, this::onStart)
+                .build();
     }
 
     private Behavior<Start> onStart(Start command) {

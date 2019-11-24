@@ -54,7 +54,7 @@
                     <arguments>
                         <argument>-classpath</argument>
                         <classpath />
-                        <argument>com.sena.akka.homework.AkkaQuickstart</argument>
+                        <argument>com.sena.akka.homework.actor.AkkaStart</argument>
                     </arguments>
                 </configuration>
             </plugin>

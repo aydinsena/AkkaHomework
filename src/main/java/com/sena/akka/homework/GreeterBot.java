@@ -19,7 +19,9 @@ public class GreeterBot extends AbstractBehavior<Greeter.Greeted> {
 
     @Override
     public Receive<Greeter.Greeted> createReceive() {
-        return newReceiveBuilder().onMessage(Greeter.Greeted.class, this::onGreeted).build();
+        return newReceiveBuilder()
+                .onMessage(Greeter.Greeted.class, this::onGreeted)
+                .build();
     }
 
     private Behavior<Greeter.Greeted> onGreeted(Greeter.Greeted message) {
