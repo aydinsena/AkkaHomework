@@ -4,16 +4,24 @@ import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.javadsl.*;
+import akka.actor.typed.receptionist.Receptionist;
+import akka.actor.typed.receptionist.ServiceKey;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class Guardian extends AbstractBehavior<Guardian.Start> {
+public class Guardian extends AbstractBehavior<Guardian.Command> {
 
+    protected interface Command {
+
+    }
+
+    public static final ServiceKey<Worker.WorkCommand> serviceKey = ServiceKey.create(Worker.WorkCommand.class, "worker-key");
     private ActorRef<Worker.WorkCommand> workers;
     private ActorRef<PasswordCrackingMaster.Command> passwordCrackingMaster;
 
-    public static final class CsvEntry {
+
+public static final class CsvEntry implements akka.actor.NoSerializationVerificationNeeded {
     public final Integer id;
     public final String name;
     public final String passwordHash;
@@ -26,8 +34,8 @@ public class Guardian extends AbstractBehavior<Guardian.Start> {
         this.gene = gene;
     }
 }
-
-    public static class Start {
+    //I guess PasswordMain receives CSV from AkkaStart?
+    public static class Start implements Command{//}, akka.actor.NoSerializationVerificationNeeded {
         public final String name;
 
         public Start(String name) {
@@ -35,23 +43,31 @@ public class Guardian extends AbstractBehavior<Guardian.Start> {
         }
     }
 
+    public static class AddWorker implements Command, RemoteSerializable {
+        private final ActorRef<Worker.WorkCommand> worker;
 
-    public static Behavior<Start> create() {
+        public AddWorker(ActorRef<Worker.WorkCommand> worker) {
+            this.worker = worker;
+        }
+    }
+
+    public static Behavior<Command> create() {
         return Behaviors.setup(Guardian::new);
     }
-    private Guardian(ActorContext<Start> context) {
+    private Guardian(ActorContext<Command> context) {
         super(context);
     }
 
     @Override
-    public Receive<Start> createReceive() {
+    public Receive<Command> createReceive() {
         return newReceiveBuilder()
                 .onMessage(Start.class, this::onStart)
+                .onMessage(AddWorker.class, this::onAddWorker)
                 .build();
     }
 
-    //This is executed when start message is received: passwordCrackingMaster and worker pool are spawned
-    private Behavior<Start> onStart(Start command) {
+    //This is executed when start message is received: passwordCrackingMaster is created in this case
+    private Behavior<Command> onStart(Start command) {
         //TODO: read CSV
         List<CsvEntry> csvEntries = new ArrayList<>();
         csvEntries.add(new CsvEntry(
@@ -69,19 +85,28 @@ public class Guardian extends AbstractBehavior<Guardian.Start> {
         ));
 
         //worker pool creation
-        int poolSize = 4;
+        int poolSize = 1;
         PoolRouter<Worker.WorkCommand> pool =
                 Routers.pool(
                         poolSize,
                         Behaviors.supervise(Worker.create()).onFailure(SupervisorStrategy.restart()));
         //this is where worker pool is spawned
-        workers = getContext().spawn(pool, "worker-pool");
+        ActorRef<Worker.WorkCommand> localWorkerPool = getContext().spawn(pool, "local-worker-pool");
+        getContext().getSystem().receptionist().tell(Receptionist.register(serviceKey, localWorkerPool));
+        GroupRouter<Worker.WorkCommand> group = Routers.group(serviceKey);
+        workers = getContext().spawn(group, "worker-group");
 
         //#create-master
         passwordCrackingMaster =
                 getContext().spawn(PasswordCrackingMaster.create(workers), "passwordCrackingMaster");
         //after creating master, sends the csv input to master
         passwordCrackingMaster.tell(new PasswordCrackingMaster.CsvHashInput(csvEntries));
+        return this;
+    }
+
+    private Behavior<Command> onAddWorker(AddWorker command) {
+        //TODO add worker to pool
+        getContext().getSystem().receptionist().tell(Receptionist.register(serviceKey, command.worker));
         return this;
     }
 }

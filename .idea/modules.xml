@@ -2,9 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Homework.iml" filepath="$PROJECT_DIR$/.idea/modules/Homework.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Homework.main.iml" filepath="$PROJECT_DIR$/.idea/modules/Homework.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Homework.test.iml" filepath="$PROJECT_DIR$/.idea/modules/Homework.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/AkkaHomework.iml" filepath="$PROJECT_DIR$/.idea/modules/AkkaHomework.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/AkkaHomework.main.iml" filepath="$PROJECT_DIR$/.idea/modules/AkkaHomework.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/AkkaHomework.test.iml" filepath="$PROJECT_DIR$/.idea/modules/AkkaHomework.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/akka-quickstart-java.iml" filepath="$PROJECT_DIR$/.idea/modules/akka-quickstart-java.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/akka-quickstart-java-build.iml" filepath="$PROJECT_DIR$/.idea/modules/akka-quickstart-java-build.iml" />
     </modules>

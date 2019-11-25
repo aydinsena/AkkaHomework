@@ -26,19 +26,19 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
 
     }
 
-    public static final class CsvHashInput implements Command {
+    public static final class CsvHashInput implements Command, akka.actor.NoSerializationVerificationNeeded {
         // List of csv entries is sent from Guardian and received by PasswordCrackingMaster
-        public final List<Guardian.CsvEntry> csvEntries;
+        private final List<Guardian.CsvEntry> csvEntries;
 
         public CsvHashInput(List<Guardian.CsvEntry> csvEntries) {
             this.csvEntries = csvEntries;
         }
     }
 
-    public static final class CrackedPasswordMessage implements Command {
-        public final Integer id;
-        public final String name;
-        public final Integer crackedPassword;
+    public static final class CrackedPasswordMessage implements Command, RemoteSerializable {
+        private final Integer id;
+        private final String name;
+        private final Integer crackedPassword;
 
 
         public CrackedPasswordMessage(Integer id, String name, Integer crackedPassword) {
@@ -76,9 +76,11 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
         uncrackedHashes = command.csvEntries;
         crackedPasswords = new ArrayList<>();
         //store the first element of uncrackedHashes list
-        Guardian.CsvEntry csv = uncrackedHashes.get(0);
+        //Guardian.CsvEntry csv = uncrackedHashes.get(0);
         //send message (that is the first element of uncrackedHashes to Worker)
-        workers.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
+        uncrackedHashes.forEach(csv -> {
+            workers.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
+        });
         return this;
     }
 
@@ -90,11 +92,12 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
         //remove entry of hash that has been cracked
         uncrackedHashes.removeIf(x -> x.id.equals(command.id));
         if (!uncrackedHashes.isEmpty()) {
-            Guardian.CsvEntry csv = uncrackedHashes.get(0);
-            workers.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
+            //Guardian.CsvEntry csv = uncrackedHashes.get(0);
+            //workers.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
             return this;
         } else {
             //TODO: terminate
+            getContext().getLog().info("all done!");
             return this;
         }
     }

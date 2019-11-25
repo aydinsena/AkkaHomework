@@ -7,18 +7,19 @@ import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
 
+
 public class Worker extends AbstractBehavior<Worker.WorkCommand> {
 
   protected interface WorkCommand {
 
   }
 
-  public static final class HashMessage implements WorkCommand {
-    public final Integer id;
-    public final String name;
-    public final String passwordHash;
+  public static final class HashMessage implements WorkCommand, RemoteSerializable {
+    private final Integer id;
+    private final String name;
+    private final String passwordHash;
     //in order to reply to master
-    public final ActorRef<PasswordCrackingMaster.Command> replyTo;
+    private final ActorRef<PasswordCrackingMaster.Command> replyTo;
 
     public HashMessage(Integer id, String name, String passwordHash, ActorRef<PasswordCrackingMaster.Command> replyTo) {
       this.id = id;
@@ -52,6 +53,12 @@ public class Worker extends AbstractBehavior<Worker.WorkCommand> {
 
   private Integer crackPassword(String hash) {
     //TODO: implement cracking
+    try {
+      getContext().getLog().info("going to sleep for 5 seconds to crack the password");
+      Thread.sleep(5000);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
     return 1111111;
   }
 }
