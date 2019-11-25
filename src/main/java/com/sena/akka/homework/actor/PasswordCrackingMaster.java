@@ -20,7 +20,7 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
     //uncrackedHashes list is used to send PasswordCrackingWorker
     private List<Guardian.CsvEntry> uncrackedHashes;
     private List<CrackedPasswordMessage> crackedPasswords;
-    private ActorRef<Worker.WorkCommand> worker;
+    private ActorRef<Worker.WorkCommand> workers;
 
     protected interface Command {
 
@@ -49,16 +49,14 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
 
     }
 
-
-    public static Behavior<Command> create() {
-        return Behaviors.setup(PasswordCrackingMaster::new);
+    // when guardian creates PasswordCrakingMaster, it gives the reference of workers to the master
+    public static Behavior<Command> create(ActorRef<Worker.WorkCommand> workers) {
+        return Behaviors.setup(context -> new PasswordCrackingMaster(context, workers));
     }
 
-    //executed when PasswordCrackingMaster is created
-    private PasswordCrackingMaster(ActorContext<Command> context) {
+    private PasswordCrackingMaster(ActorContext<Command> context, ActorRef<Worker.WorkCommand> workers) {
         super(context);
-        //worker created
-        worker = context.spawn(Worker.create(), "worker");
+        this.workers = workers;
     }
 
 
@@ -77,9 +75,10 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
         //uncrackedHashes is sent to worker one by one that's why we store it here
         uncrackedHashes = command.csvEntries;
         crackedPasswords = new ArrayList<>();
+        //store the first element of uncrackedHashes list
         Guardian.CsvEntry csv = uncrackedHashes.get(0);
-        //send messages to all workers
-        worker.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
+        //send message (that is the first element of uncrackedHashes to Worker)
+        workers.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
         return this;
     }
 
@@ -92,7 +91,7 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
         uncrackedHashes.removeIf(x -> x.id.equals(command.id));
         if (!uncrackedHashes.isEmpty()) {
             Guardian.CsvEntry csv = uncrackedHashes.get(0);
-            worker.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
+            workers.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
             return this;
         } else {
             //TODO: terminate
