@@ -15,6 +15,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.beust</groupId>
+            <artifactId>jcommander</artifactId>
+            <version>1.72</version>
+        </dependency>
+        <dependency>
             <groupId>com.typesafe.akka</groupId>
             <artifactId>akka-actor-typed_2.13</artifactId>
             <version>${akka.version}</version>
@@ -24,25 +29,20 @@
             <artifactId>akka-serialization-jackson_2.13</artifactId>
             <version>${akka.version}</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>com.typesafe.akka</groupId>-->
-<!--            <artifactId>akka-remote_2.13</artifactId>-->
-<!--            <version>2.6.0</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>io.aeron</groupId>-->
-<!--            <artifactId>aeron-driver</artifactId>-->
-<!--            <version>1.22.1</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>io.aeron</groupId>-->
-<!--            <artifactId>aeron-client</artifactId>-->
-<!--            <version>1.22.1</version>-->
-<!--        </dependency>-->
         <dependency>
-            <groupId>com.beust</groupId>
-            <artifactId>jcommander</artifactId>
-            <version>1.72</version>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-remote_2.13</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.aeron</groupId>
+            <artifactId>aeron-driver</artifactId>
+            <version>1.22.1</version>
+        </dependency>
+        <dependency>
+            <groupId>io.aeron</groupId>
+            <artifactId>aeron-client</artifactId>
+            <version>1.22.1</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>

@@ -6,6 +6,7 @@ import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
+import com.sena.akka.homework.utils.AnalyzeUtils;
 
 
 public class Worker extends AbstractBehavior<Worker.WorkCommand> {
@@ -52,14 +53,13 @@ public class Worker extends AbstractBehavior<Worker.WorkCommand> {
   }
 
   private Integer crackPassword(String hash) {
-    //TODO: implement cracking
     try {
-      getContext().getLog().info("going to sleep for 5 seconds to crack the password");
-      Thread.sleep(5000);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
+      getContext().getLog().info("attempting to crack password for hash " + hash);
+      return AnalyzeUtils.unhash(hash);
+    } catch (RuntimeException e) {
+      getContext().getLog().info("cracking failed for hash  " + hash);
+      return 0;
     }
-    return 1111111;
   }
 }
 

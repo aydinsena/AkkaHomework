@@ -5,11 +5,13 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.sena.akka.homework.utils.AkkaUtils;
+import com.sena.akka.homework.utils.CsvUtils;
 import com.typesafe.config.Config;
 
 
 
 import java.io.IOException;
+import java.util.List;
 
 public class AkkaStart {
 
@@ -52,34 +54,53 @@ public class AkkaStart {
   }
 
   private static void startMaster() {
+    final List<MasterGuardian.CsvEntry> csv = CsvUtils.readCsvAsCsvEntries("students.csv");
+    //csv.forEach(x -> System.out.println(x.id + " " + x.name + " " + x.passwordHash + " " + x.gene));
+
     String host = "localhost";
     int port = 4567;
 
     final Config config = AkkaUtils.createRemoteAkkaConfig(host, port);
 
-    System.out.println("config:");
-    System.out.println(config.toString());
-    //#actor-system
-    final ActorSystem<Guardian.Command> guardian = ActorSystem.create(Guardian.create(), "guardian", config);
+    //create guardian
+    final ActorSystem<MasterGuardian.Command> guardian = ActorSystem.create(MasterGuardian.create(), "guardian", config);
 
-    //try adding a remote worker pool
-    final ActorSystem<Worker.WorkCommand> remoteWorkers = ActorSystem.create(Worker.create(), "remote-workers", config);
-    guardian.tell(new Guardian.AddWorker(remoteWorkers));
+    //sleep a little to give time for slave systems to connect. TODO: wait until slave systems are connected
+    try {
+      Thread.sleep(10000);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
 
-    //#main-send-messages
-    guardian.tell(new Guardian.Start("start"));
-    //#main-send-messages
+    //tell guardian to start processing
+    guardian.tell(new MasterGuardian.Start(csv, 4));
 
     try {
       System.out.println(">>> Press ENTER to exit <<<");
       System.in.read();
     } catch (IOException ignored) {
     } finally {
-
+        guardian.terminate();
     }
   }
 
   private static void startSlave() {
+    String host = "localhost";
+    int port = 7654;
+
+    final Config config = AkkaUtils.createRemoteAkkaConfig(host, port);
+
+    final ActorSystem<SlaveGuardian.Command> slaveGuardian = ActorSystem.create(SlaveGuardian.create(), "remote-worker", config);
+
+    slaveGuardian.tell(new SlaveGuardian.Start("akka://guardian@localhost:4567/user/add-worker-proxy", 4));
+
+    try {
+      System.out.println(">>> Press ENTER to exit <<<");
+      System.in.read();
+    } catch (IOException ignored) {
+    } finally {
+      slaveGuardian.terminate();
+    }
 
   }
 

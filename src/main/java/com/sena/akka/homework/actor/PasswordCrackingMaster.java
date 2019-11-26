@@ -18,7 +18,7 @@ import java.util.List;
 public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMaster.Command> {
 
     //uncrackedHashes list is used to send PasswordCrackingWorker
-    private List<Guardian.CsvEntry> uncrackedHashes;
+    private List<MasterGuardian.CsvEntry> uncrackedHashes;
     private List<CrackedPasswordMessage> crackedPasswords;
     private ActorRef<Worker.WorkCommand> workers;
 
@@ -28,9 +28,9 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
 
     public static final class CsvHashInput implements Command, akka.actor.NoSerializationVerificationNeeded {
         // List of csv entries is sent from Guardian and received by PasswordCrackingMaster
-        private final List<Guardian.CsvEntry> csvEntries;
+        private final List<MasterGuardian.CsvEntry> csvEntries;
 
-        public CsvHashInput(List<Guardian.CsvEntry> csvEntries) {
+        public CsvHashInput(List<MasterGuardian.CsvEntry> csvEntries) {
             this.csvEntries = csvEntries;
         }
     }
@@ -86,7 +86,7 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
 
     //received by master (after when cracked password is received by master)
     private Behavior<Command> onCrackedPasswordMessage(CrackedPasswordMessage command) {
-        getContext().getLog().info("Received cracked passwords!");
+        getContext().getLog().info("Received cracked password {} for {}!", command.crackedPassword, command.id);
         // save cracked password
         crackedPasswords.add(command);
         //remove entry of hash that has been cracked
@@ -96,9 +96,9 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
             //workers.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
             return this;
         } else {
-            //TODO: terminate
-            getContext().getLog().info("all done!");
-            return this;
+            //TODO: send data to next master actor
+
+            return Behaviors.stopped(() -> getContext().getLog().info("all done! PasswordCrackingMaster shutting down"));
         }
     }
 }
