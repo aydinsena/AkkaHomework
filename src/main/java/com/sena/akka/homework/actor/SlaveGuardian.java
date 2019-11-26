@@ -11,29 +11,19 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 
-public class SlaveGuardian extends AbstractBehavior<SlaveGuardian.Command> implements akka.actor.TypedActor.Receiver  {
+public class SlaveGuardian extends AbstractBehavior<SlaveGuardian.Command> {
 
-    @Override
-    public void onReceive(Object message, akka.actor.ActorRef sender) {
-        getContext().getLog().info("got a message");
-        if (message instanceof ActorIdentity) getContext().getLog().info("got identity");
-        else getContext().getLog().info("got message of type" + message.getClass().getName());
-    }
 
     protected interface Command {
 
     }
 
-    //public static final ServiceKey<Worker.WorkCommand> serviceKey = ServiceKey.create(Worker.WorkCommand.class, "worker-key");
-    private ActorRef<Worker.WorkCommand> workers;
-    private ActorRef<MasterGuardian.Command> masterGuardian;
-
     public static class Start implements Command, akka.actor.NoSerializationVerificationNeeded {
-        private final String masterGuardianPath;
+        private final String proxyPath;
         private final int numWorkers;
 
-        public Start(String masterGuardianPath, int numWorkers) {
-            this.masterGuardianPath = masterGuardianPath;
+        public Start(String proxyPath, int numWorkers) {
+            this.proxyPath = proxyPath;
             this.numWorkers = numWorkers;
         }
     }
@@ -70,7 +60,7 @@ public class SlaveGuardian extends AbstractBehavior<SlaveGuardian.Command> imple
         ActorRef<Worker.WorkCommand> slaveWorkerPool = getContext().spawn(pool, "slave-worker-pool");
 
         //#find Master Guardian and send addworker message
-        ActorSelection masterGuardianSelection = getContext().classicActorContext().actorSelection(command.masterGuardianPath);
+        ActorSelection masterGuardianSelection = getContext().classicActorContext().actorSelection(command.proxyPath);
 
         try {
             akka.actor.ActorRef ar = masterGuardianSelection.resolveOne(Duration.ofSeconds(30)).toCompletableFuture().get();
@@ -89,7 +79,7 @@ public class SlaveGuardian extends AbstractBehavior<SlaveGuardian.Command> imple
 
         masterGuardianSelection.tell(new MasterGuardian.AddWorker(getContext().getSelf(), slaveWorkerPool), Adapter.toClassic(getContext().getSelf()));
         //masterGuardianSelection.tell(new Dummy.DummyCommand("something"), Adapter.toClassic(getContext().getSelf()));
-        getContext().getLog().info("sent add worker message to " + command.masterGuardianPath);
+        getContext().getLog().info("sent add worker message to " + command.proxyPath);
 
         return this;
     }

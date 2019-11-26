@@ -37,7 +37,7 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
         }
     }
 
-    //I guess PasswordMain receives CSV from AkkaStart?
+    //receives CSV from AkkaStart
     public static class Start implements Command {//}, akka.actor.NoSerializationVerificationNeeded {
         public final List<MasterGuardian.CsvEntry> csvEntries;
         private final int numWorkers;

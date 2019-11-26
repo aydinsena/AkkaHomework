@@ -53,6 +53,7 @@ public class AkkaStart {
 
   }
 
+  //when Master system starts, read in csv and create master guardian
   private static void startMaster() {
     final List<MasterGuardian.CsvEntry> csv = CsvUtils.readCsvAsCsvEntries("students.csv");
     //csv.forEach(x -> System.out.println(x.id + " " + x.name + " " + x.passwordHash + " " + x.gene));
@@ -83,6 +84,8 @@ public class AkkaStart {
         guardian.terminate();
     }
   }
+
+//when slave is created--> create SlaveGuardian and tell slaveGuardian proxyPath
 
   private static void startSlave() {
     String host = "localhost";
