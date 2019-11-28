@@ -2,6 +2,7 @@ package com.sena.akka.homework.actor;
 
 import akka.actor.typed.ActorSystem;
 import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.sena.akka.homework.utils.AkkaUtils;
@@ -16,25 +17,28 @@ import java.util.List;
 public class AkkaStart {
 
   public static void main(String[] args) {
+    MasterCommand masterCommand = new MasterCommand();
+    SlaveCommand slaveCommand = new SlaveCommand();
+
     JCommander jCommander = JCommander.newBuilder()
-            .addCommand("master", new CommandMaster())
-            .addCommand("slave", new CommandSlave())
+            .addCommand("master", new MasterCommand())
+            .addCommand("slave", new SlaveCommand())
             .build();
 
     try {
       jCommander.parse(args);
 
       if (jCommander.getParsedCommand() == null) {
-        startMaster();
+        startMaster(masterCommand);
       }
 
       // Start a master or slave.
       switch (jCommander.getParsedCommand()) {
         case "master":
-          startMaster();
+          startMaster(masterCommand);
           break;
         case "slave":
-          startSlave();
+          startSlave(slaveCommand);
           break;
         default:
           throw new AssertionError();
@@ -54,7 +58,7 @@ public class AkkaStart {
   }
 
   //when Master system starts, read in csv and create master guardian
-  private static void startMaster() {
+  private static void startMaster(MasterCommand masterCommand) {
     final List<MasterGuardian.CsvEntry> csv = CsvUtils.readCsvAsCsvEntries("students.csv");
     //csv.forEach(x -> System.out.println(x.id + " " + x.name + " " + x.passwordHash + " " + x.gene));
 
@@ -87,7 +91,7 @@ public class AkkaStart {
 
 //when slave is created--> create SlaveGuardian and tell slaveGuardian proxyPath
 
-  private static void startSlave() {
+  private static void startSlave(SlaveCommand slaveCommand) {
     String host = "localhost";
     int port = 7654;
 
@@ -95,7 +99,7 @@ public class AkkaStart {
 
     final ActorSystem<SlaveGuardian.Command> slaveGuardian = ActorSystem.create(SlaveGuardian.create(), "remote-worker", config);
 
-    slaveGuardian.tell(new SlaveGuardian.Start("akka://guardian@localhost:4567/user/add-worker-proxy", 4));
+    slaveGuardian.tell(new SlaveGuardian.Start("akka://guardian@" + slaveCommand.host + ":4567/user/add-worker-proxy", slaveCommand.numWorkers));
 
     try {
       System.out.println(">>> Press ENTER to exit <<<");
@@ -108,12 +112,24 @@ public class AkkaStart {
   }
 
   @Parameters(commandDescription = "start a master actor system")
-  static class CommandMaster {
+  static class MasterCommand {
+    @Parameter(names = {"-w", "--workers"}, description = "number of local workers")
+    int numWorkers = 4;
 
+    @Parameter(names = {"-s", "--slaves"}, description = "number of slave systems required to join until processing starts")
+    int numSlaves = 4;
+
+    @Parameter(names = {"-i", "--input"}, description = "name of the file that contains data to be processed")
+    String fileName = "students.csv";
   }
 
   @Parameters(commandDescription = "start a slave actor system")
-  static class CommandSlave {
+  static class SlaveCommand {
 
+    @Parameter(names = {"-w", "--workers"}, description = "number of workers running on slave system")
+    int numWorkers = 4;
+
+    @Parameter(names = {"-h", "--host"}, description = "IP of the host system")
+    String host = "localhost";
   }
 }

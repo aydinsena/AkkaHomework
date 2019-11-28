@@ -9,7 +9,7 @@ import java.util.stream.Stream;
 
 public class CsvUtils {
     public static List<String> readCsv(String filename) {
-        try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(filename)) {
+        try (InputStream in = new FileInputStream(filename)) {
             if (in == null) {
                 throw new FileNotFoundException("Could not get the resource " + filename);
             }
@@ -21,7 +21,7 @@ public class CsvUtils {
     }
 
     public static List<MasterGuardian.CsvEntry> readCsvAsCsvEntries(String filename) {
-        try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(filename)) {
+        try (InputStream in = new FileInputStream(filename)) {
             if (in == null) {
                 throw new FileNotFoundException("Could not get the resource " + filename);
             }
