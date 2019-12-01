@@ -22,6 +22,7 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
     private ActorRef<Worker.WorkCommand> workers;
     private ActorRef<PasswordCrackingMaster.Command> passwordCrackingMaster;
     private ActorRef<LinearCombinationMaster.Command> linearCombinationMaster;
+    private ActorRef<HashMiningMaster.Command> hashMiningMaster;
 
 
     public static final class CsvEntry implements akka.actor.NoSerializationVerificationNeeded {
@@ -96,10 +97,14 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
         GroupRouter<Worker.WorkCommand> group = Routers.group(serviceKey);
         workers = getContext().spawn(group, "worker-group");
 
+        //create-HashMiningMaster
+        hashMiningMaster =
+                getContext().spawn(HashMiningMaster.create(workers), "hashMiningMaster");
+        getContext().watch(hashMiningMaster);
+
         //create-LinearCombinationMaster
         linearCombinationMaster =
-                getContext().spawn(LinearCombinationMaster.create(workers), "linearCombinationMaster");
-        getContext().watch(linearCombinationMaster);
+                getContext().spawn(LinearCombinationMaster.create(workers, hashMiningMaster), "linearCombinationMaster");
 
         //#create-PasswordCrackingMaster
         passwordCrackingMaster =
@@ -121,7 +126,7 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
     private Behavior<Command> onTerminated(Terminated terminated) {
         getContext().getSystem().log().info("Job stopped: {}", terminated.getRef().path().name());
         //TODO find out proper way to shut down once everything is done
-        if (terminated.getRef().path().name().equals("linearCombinationMaster")) {
+        if (terminated.getRef().path().name().equals("hashMiningMaster")) {
             getContext().getLog().info("everything done, guardian shutting down");
             slaveGuardians.forEach(sg -> sg.tell(new SlaveGuardian.Stop()));
             return Behaviors.stopped();

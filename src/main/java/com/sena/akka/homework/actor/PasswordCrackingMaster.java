@@ -56,6 +56,10 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
             return id;
         }
 
+        public String getName() {
+            return name;
+        }
+
         public Integer getCrackedPassword() {
             return crackedPassword;
         }

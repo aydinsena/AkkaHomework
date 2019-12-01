@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 public class LinearCombinationMaster extends AbstractBehavior<LinearCombinationMaster.Command> {
 
     private ActorRef<Worker.WorkCommand> workers;
+    private ActorRef<HashMiningMaster.Command> hashMiningMaster;
     CrackedPasswordMessages crackedPasswordMessages;
     //TODO necessary to store as array?
     int [] passwords;
@@ -62,14 +63,46 @@ public class LinearCombinationMaster extends AbstractBehavior<LinearCombinationM
         }
     }
 
-    // when guardian creates LinearCombinationMaster, it gives the reference of workers to the master
-    public static Behavior<Command> create(ActorRef<Worker.WorkCommand> workers) {
-        return Behaviors.setup(context -> new LinearCombinationMaster(context, workers));
+    public static final class CrackedPasswordWithPrefixMessage implements Command, RemoteSerializable {
+        private final Integer id;
+        private final String name;
+        private final Integer crackedPassword;
+        private final Integer prefix;
+
+
+        public CrackedPasswordWithPrefixMessage(Integer id, String name, Integer crackedPassword, Integer prefix) {
+            this.id = id;
+            this.name = name;
+            this.crackedPassword = crackedPassword;
+            this.prefix = prefix;
+        }
+
+        public Integer getId() {
+            return id;
+        }
+
+        public Integer getCrackedPassword() {
+            return crackedPassword;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public Integer getPrefix() {
+            return prefix;
+        }
     }
 
-    public LinearCombinationMaster(ActorContext<Command> context, ActorRef<Worker.WorkCommand> workers) {
+    // when guardian creates LinearCombinationMaster, it gives the reference of workers to the master
+    public static Behavior<Command> create(ActorRef<Worker.WorkCommand> workers, ActorRef<HashMiningMaster.Command> hashMiningMaster) {
+        return Behaviors.setup(context -> new LinearCombinationMaster(context, workers, hashMiningMaster));
+    }
+
+    public LinearCombinationMaster(ActorContext<Command> context, ActorRef<Worker.WorkCommand> workers,  ActorRef<HashMiningMaster.Command> hashMiningMaster) {
         super(context);
         this.workers = workers;
+        this.hashMiningMaster = hashMiningMaster;
     }
 
     @Override
@@ -113,6 +146,16 @@ public class LinearCombinationMaster extends AbstractBehavior<LinearCombinationM
     private Behavior<Command> onPrefixes(PrefixesFound command) {
         int checkSum = AnalyzeUtils.sum(this.passwords, command.prefixes);
         getContext().getLog().info("Received the right prefixes from the Worker, sum is " + checkSum);
+        List<CrackedPasswordWithPrefixMessage> crackedPasswordWithPrefixMessageList =
+                this.crackedPasswordMessages.crackedPasswords.stream()
+                .map(m -> new CrackedPasswordWithPrefixMessage(
+                        m.getId(),
+                        m.getName(),
+                        m.getCrackedPassword(),
+                        command.prefixes[m.getId() - 1]
+                        ))
+                .collect(Collectors.toList());
+        hashMiningMaster.tell(new HashMiningMaster.CrackedPasswordsWithPrefixMessages(crackedPasswordWithPrefixMessageList));
 
         return Behaviors.stopped(() -> getContext().getLog().info("all done! LinearCombinationMaster shutting down"));
     }
