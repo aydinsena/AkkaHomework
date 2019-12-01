@@ -30,6 +30,21 @@ public class Worker extends AbstractBehavior<Worker.WorkCommand> {
     }
   }
 
+
+  public static final class LinearCombinationMessage implements WorkCommand, RemoteSerializable {
+    private final int [] passwords;
+    private long rangeFrom;
+    private long rangeTo;
+    private final ActorRef<LinearCombinationMaster.Command> replyTo;
+
+    public LinearCombinationMessage(int[] passwords, long rangeFrom, long rangeTo, ActorRef<LinearCombinationMaster.Command> replyTo) {
+      this.passwords = passwords;
+      this.rangeFrom = rangeFrom;
+      this.rangeTo = rangeTo;
+      this.replyTo = replyTo;
+    }
+  }
+
   public static Behavior<WorkCommand> create() {
     return Behaviors.setup(Worker::new);
   }
@@ -42,7 +57,22 @@ public class Worker extends AbstractBehavior<Worker.WorkCommand> {
   public Receive<WorkCommand> createReceive() {
     return newReceiveBuilder()
             .onMessage(HashMessage.class, this::onHashMessage)
+            .onMessage(LinearCombinationMessage.class, this::onLinearCombinationMessage)
             .build();
+  }
+
+  private Behavior<WorkCommand> onLinearCombinationMessage(LinearCombinationMessage command) {
+    getContext().getLog().info("Received LinearCombinationMessage {} to {}!", command.rangeFrom, command.rangeTo);
+
+    long t = System.currentTimeMillis();
+    int [] prefixes = AnalyzeUtils.solve(command.passwords, command.rangeFrom, command.rangeTo);
+    getContext().getLog().info("solving took: " + (System.currentTimeMillis() - t));
+    if (prefixes.length > 0) {
+      command.replyTo.tell(new LinearCombinationMaster.PrefixesFound(prefixes));
+    } else {
+      command.replyTo.tell(new LinearCombinationMaster.PrefixesNotFound(command.rangeFrom, command.rangeTo));
+    }
+    return this;
   }
 
   private Behavior<WorkCommand> onHashMessage(HashMessage command) {
@@ -51,6 +81,15 @@ public class Worker extends AbstractBehavior<Worker.WorkCommand> {
     command.replyTo.tell(new PasswordCrackingMaster.CrackedPasswordMessage(command.id, command.name, pw));
     return this;
   }
+
+/*  private Behavior<WorkCommand> onCrackedPasswordMessage(HashMessage command) {
+    getContext().getLog().info("Received crackedPassword message {}!", command.passwordHash);
+    Integer pw = crackPassword(command.passwordHash);
+    command.replyTo.tell(new PasswordCrackingMaster.CrackedPasswordMessage(command.id, command.name, pw));
+    return this;
+  }*/
+
+
 
   private Integer crackPassword(String hash) {
     try {
@@ -61,6 +100,7 @@ public class Worker extends AbstractBehavior<Worker.WorkCommand> {
       return 0;
     }
   }
+
 }
 
 

@@ -6,8 +6,10 @@ import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
+import scala.Int;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 // PasswordCrackingMaster receives CsvHashInput message
@@ -21,6 +23,9 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
     private List<MasterGuardian.CsvEntry> uncrackedHashes;
     private List<CrackedPasswordMessage> crackedPasswords;
     private ActorRef<Worker.WorkCommand> workers;
+
+    private ActorRef<LinearCombinationMaster.Command> linearCombinationMaster;
+
 
     protected interface Command {
 
@@ -47,16 +52,24 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
             this.crackedPassword = crackedPassword;
         }
 
+        public Integer getId() {
+            return id;
+        }
+
+        public Integer getCrackedPassword() {
+            return crackedPassword;
+        }
     }
 
     // when guardian creates PasswordCrakingMaster, it gives the reference of workers to the master
-    public static Behavior<Command> create(ActorRef<Worker.WorkCommand> workers) {
-        return Behaviors.setup(context -> new PasswordCrackingMaster(context, workers));
+    public static Behavior<Command> create(ActorRef<Worker.WorkCommand> workers, ActorRef<LinearCombinationMaster.Command> linearCombinationMaster) {
+        return Behaviors.setup(context -> new PasswordCrackingMaster(context, workers, linearCombinationMaster));
     }
 
-    private PasswordCrackingMaster(ActorContext<Command> context, ActorRef<Worker.WorkCommand> workers) {
+    private PasswordCrackingMaster(ActorContext<Command> context, ActorRef<Worker.WorkCommand> workers, ActorRef<LinearCombinationMaster.Command> linearCombinationMaster) {
         super(context);
         this.workers = workers;
+        this.linearCombinationMaster = linearCombinationMaster;
     }
 
 
@@ -96,7 +109,8 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
             //workers.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
             return this;
         } else {
-            //TODO: send data to next master actor
+            crackedPasswords.sort(Comparator.comparing(CrackedPasswordMessage::getId));
+            linearCombinationMaster.tell(new LinearCombinationMaster.CrackedPasswordMessages(crackedPasswords));
 
             return Behaviors.stopped(() -> getContext().getLog().info("all done! PasswordCrackingMaster shutting down"));
         }
