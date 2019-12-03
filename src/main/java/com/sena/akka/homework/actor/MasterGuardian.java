@@ -120,8 +120,8 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
 
         if (this.slaveGuardians.size() >= startCommand.numSlaveSystems) {
             //after creating PasswordCrackingMaster, sends the csv input to PasswordCrackingMaster
-            passwordCrackingMaster.tell(new PasswordCrackingMaster.CsvHashInput(command.csvEntries));
-            dnaAnalysisMaster.tell(new DnaAnalysisMaster.CsvHashInput(command.csvEntries));
+            passwordCrackingMaster.tell(new PasswordCrackingMaster.CsvContent(command.csvEntries));
+            dnaAnalysisMaster.tell(new DnaAnalysisMaster.CsvContent(command.csvEntries));
         } else {
             getContext().getLog().info("start command received, waiting for {} more slave systems to join", startCommand.numSlaveSystems - this.slaveGuardians.size());
         }
@@ -137,8 +137,8 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
         if (startCommand!=null && slaveGuardians.size() >= startCommand.numSlaveSystems) {
             getContext().getLog().info("{} slave systems joined, starting.", slaveGuardians.size());
             //after creating PasswordCrackingMaster, sends the csv input to PasswordCrackingMaster
-            passwordCrackingMaster.tell(new PasswordCrackingMaster.CsvHashInput(startCommand.csvEntries));
-            dnaAnalysisMaster.tell(new DnaAnalysisMaster.CsvHashInput(startCommand.csvEntries));
+            passwordCrackingMaster.tell(new PasswordCrackingMaster.CsvContent(startCommand.csvEntries));
+            dnaAnalysisMaster.tell(new DnaAnalysisMaster.CsvContent(startCommand.csvEntries));
         }
         return this;
     }

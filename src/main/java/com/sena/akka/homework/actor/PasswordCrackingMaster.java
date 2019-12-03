@@ -6,7 +6,6 @@ import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
-import scala.Int;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,11 +30,11 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
 
     }
 
-    public static final class CsvHashInput implements Command, akka.actor.NoSerializationVerificationNeeded {
+    public static final class CsvContent implements Command, akka.actor.NoSerializationVerificationNeeded {
         // List of csv entries is sent from Guardian and received by PasswordCrackingMaster
         private final List<MasterGuardian.CsvEntry> csvEntries;
 
-        public CsvHashInput(List<MasterGuardian.CsvEntry> csvEntries) {
+        public CsvContent(List<MasterGuardian.CsvEntry> csvEntries) {
             this.csvEntries = csvEntries;
         }
     }
@@ -81,13 +80,13 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
     //when it receives any command message
     public Receive<Command> createReceive() {
         return newReceiveBuilder()
-                .onMessage(CsvHashInput.class, this::onCsvHashInput)
+                .onMessage(CsvContent.class, this::onCsvHashInput)
                 .onMessage(CrackedPasswordMessage.class, this::onCrackedPasswordMessage)
                 .build();
     }
 
     //received by main
-    private Behavior<Command> onCsvHashInput(CsvHashInput command) {
+    private Behavior<Command> onCsvHashInput(CsvContent command) {
         getContext().getLog().info("Csv received from main!");
         //uncrackedHashes is sent to worker one by one that's why we store it here
         uncrackedHashes = new ArrayList<>(command.csvEntries);
