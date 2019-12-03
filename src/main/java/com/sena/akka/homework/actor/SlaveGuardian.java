@@ -71,14 +71,7 @@ public class SlaveGuardian extends AbstractBehavior<SlaveGuardian.Command> {
             e.printStackTrace();
         }
 
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
         masterGuardianSelection.tell(new MasterGuardian.AddWorker(getContext().getSelf(), slaveWorkerPool), Adapter.toClassic(getContext().getSelf()));
-        //masterGuardianSelection.tell(new Dummy.DummyCommand("something"), Adapter.toClassic(getContext().getSelf()));
         getContext().getLog().info("sent add worker message to " + command.proxyPath);
 
         return this;

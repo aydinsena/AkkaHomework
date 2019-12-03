@@ -90,12 +90,10 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
     private Behavior<Command> onCsvHashInput(CsvHashInput command) {
         getContext().getLog().info("Csv received from main!");
         //uncrackedHashes is sent to worker one by one that's why we store it here
-        uncrackedHashes = command.csvEntries;
+        uncrackedHashes = new ArrayList<>(command.csvEntries);
         crackedPasswords = new ArrayList<>();
-        //store the first element of uncrackedHashes list
-        //Guardian.CsvEntry csv = uncrackedHashes.get(0);
-        //send message (that is the first element of uncrackedHashes to Worker)
-        uncrackedHashes.forEach(csv -> {
+        //send all messages
+        command.csvEntries.forEach(csv -> {
             workers.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
         });
         return this;
@@ -103,14 +101,12 @@ public class PasswordCrackingMaster extends AbstractBehavior<PasswordCrackingMas
 
     //received by master (after when cracked password is received by master)
     private Behavior<Command> onCrackedPasswordMessage(CrackedPasswordMessage command) {
-        getContext().getLog().info("Received cracked password {} for {}!", command.crackedPassword, command.id);
+        getContext().getLog().debug("Received cracked password {} for {}!", command.crackedPassword, command.id);
         // save cracked password
         crackedPasswords.add(command);
         //remove entry of hash that has been cracked
         uncrackedHashes.removeIf(x -> x.id.equals(command.id));
         if (!uncrackedHashes.isEmpty()) {
-            //Guardian.CsvEntry csv = uncrackedHashes.get(0);
-            //workers.tell(new Worker.HashMessage(csv.id, csv.name, csv.passwordHash, getContext().getSelf()));
             return this;
         } else {
             crackedPasswords.sort(Comparator.comparing(CrackedPasswordMessage::getId));

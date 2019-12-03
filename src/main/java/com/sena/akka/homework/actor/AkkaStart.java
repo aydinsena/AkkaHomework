@@ -59,10 +59,10 @@ public class AkkaStart {
 
   //when Master system starts, read in csv and create master guardian
   private static void startMaster(MasterCommand masterCommand) {
-    final List<MasterGuardian.CsvEntry> csv = CsvUtils.readCsvAsCsvEntries("students.csv");
-    //csv.forEach(x -> System.out.println(x.id + " " + x.name + " " + x.passwordHash + " " + x.gene));
+    final List<MasterGuardian.CsvEntry> csv = CsvUtils.readCsvAsCsvEntries(masterCommand.fileName);
 
     String host = "localhost";
+    //TODO: find free port when running multiple slaves
     int port = 4567;
 
     final Config config = AkkaUtils.createRemoteAkkaConfig(host, port);
@@ -70,15 +70,8 @@ public class AkkaStart {
     //create guardian
     final ActorSystem<MasterGuardian.Command> guardian = ActorSystem.create(MasterGuardian.create(), "guardian", config);
 
-    //sleep a little to give time for slave systems to connect. TODO: wait until slave systems are connected
-    try {
-      Thread.sleep(10000);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
-
     //tell guardian to start processing
-    guardian.tell(new MasterGuardian.Start(csv, 4));
+    guardian.tell(new MasterGuardian.Start(csv, masterCommand.numWorkers, masterCommand.numSlaves));
 
     try {
       System.out.println(">>> Press ENTER to exit <<<");
@@ -93,7 +86,8 @@ public class AkkaStart {
 
   private static void startSlave(SlaveCommand slaveCommand) {
     String host = "localhost";
-    int port = 7654;
+    //finds free port
+    int port = 0;
 
     final Config config = AkkaUtils.createRemoteAkkaConfig(host, port);
 
@@ -114,10 +108,10 @@ public class AkkaStart {
   @Parameters(commandDescription = "start a master actor system")
   static class MasterCommand {
     @Parameter(names = {"-w", "--workers"}, description = "number of local workers")
-    int numWorkers = 4;
+    int numWorkers = 1;
 
     @Parameter(names = {"-s", "--slaves"}, description = "number of slave systems required to join until processing starts")
-    int numSlaves = 4;
+    int numSlaves = 2;
 
     @Parameter(names = {"-i", "--input"}, description = "name of the file that contains data to be processed")
     String fileName = "students.csv";

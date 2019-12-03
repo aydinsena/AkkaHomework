@@ -6,8 +6,12 @@ import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.sena.akka.homework.utils.AnalyzeUtils;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,7 +20,6 @@ public class LinearCombinationMaster extends AbstractBehavior<LinearCombinationM
     private ActorRef<Worker.WorkCommand> workers;
     private ActorRef<HashMiningMaster.Command> hashMiningMaster;
     CrackedPasswordMessages crackedPasswordMessages;
-    //TODO necessary to store as array?
     int [] passwords;
     private long rangeCounter;
     //TODO tweak params
@@ -44,22 +47,21 @@ public class LinearCombinationMaster extends AbstractBehavior<LinearCombinationM
         }
     }
 
-    public static final class PrefixesFound implements Command {
+
+    public static final class PrefixesFound implements Command, RemoteSerializable {
 
         private final int[] prefixes;
 
+        @JsonCreator
         public PrefixesFound(int[] prefixes) {
             this.prefixes = prefixes;
         }
     }
 
-    public static final class PrefixesNotFound implements Command {
-        private long rangeFrom;
-        private long rangeTo;
+    @JsonIgnoreProperties(ignoreUnknown=true)
+    public static final class PrefixesNotFound implements Command, RemoteSerializable {
 
-        public PrefixesNotFound(long rangeFrom, long rangeTo) {
-            this.rangeFrom = rangeFrom;
-            this.rangeTo = rangeTo;
+        public PrefixesNotFound() {
         }
     }
 
@@ -109,7 +111,7 @@ public class LinearCombinationMaster extends AbstractBehavior<LinearCombinationM
     public Receive<Command> createReceive() {
         return newReceiveBuilder()
                 .onMessage(CrackedPasswordMessages.class, this::onCrackedPasswordMessages)
-                .onMessage(PrefixesFound.class, this::onPrefixes)
+                .onMessage(PrefixesFound.class, this::onPrefixesFound)
                 .onMessage(PrefixesNotFound.class, this::onPrefixesNotFound)
                 .build();
     }
@@ -132,7 +134,7 @@ public class LinearCombinationMaster extends AbstractBehavior<LinearCombinationM
     }
 
     private Behavior<Command> onPrefixesNotFound(PrefixesNotFound command) {
-        getContext().getLog().info("Received prefixes not found from the Worker, sending another range starting at " + rangeCounter);
+        getContext().getLog().debug("Received prefixes not found from the Worker, sending another range starting at " + rangeCounter);
         workers.tell(new Worker.LinearCombinationMessage(
                 this.passwords,
                 rangeCounter,
@@ -143,9 +145,12 @@ public class LinearCombinationMaster extends AbstractBehavior<LinearCombinationM
         return this;
     }
 
-    private Behavior<Command> onPrefixes(PrefixesFound command) {
+    private Behavior<Command> onPrefixesFound(PrefixesFound command) {
         int checkSum = AnalyzeUtils.sum(this.passwords, command.prefixes);
-        getContext().getLog().info("Received the right prefixes from the Worker, sum is " + checkSum);
+        if (checkSum != 0) {
+            throw new RuntimeException("prefix checksum not 0, it is: " + checkSum + " for prefixes " + Arrays.toString(command.prefixes));
+        }
+        getContext().getLog().info("Received the right prefixes from the Worker, sum is " + checkSum + ". prefix is " + Arrays.toString(command.prefixes));
         List<CrackedPasswordWithPrefixMessage> crackedPasswordWithPrefixMessageList =
                 this.crackedPasswordMessages.crackedPasswords.stream()
                 .map(m -> new CrackedPasswordWithPrefixMessage(

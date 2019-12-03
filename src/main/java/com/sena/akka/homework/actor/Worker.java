@@ -8,6 +8,9 @@ import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
 import com.sena.akka.homework.utils.AnalyzeUtils;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class Worker extends AbstractBehavior<Worker.WorkCommand> {
 
@@ -30,7 +33,6 @@ public class Worker extends AbstractBehavior<Worker.WorkCommand> {
     }
   }
 
-
   public static final class LinearCombinationMessage implements WorkCommand, RemoteSerializable {
     private final int [] passwords;
     private long rangeFrom;
@@ -41,6 +43,32 @@ public class Worker extends AbstractBehavior<Worker.WorkCommand> {
       this.passwords = passwords;
       this.rangeFrom = rangeFrom;
       this.rangeTo = rangeTo;
+      this.replyTo = replyTo;
+    }
+  }
+
+  public static final class DnaAnalysisMessage implements WorkCommand, RemoteSerializable {
+    List<MasterGuardian.CsvEntry> csvEntries;
+    Integer thisPersonIndex;
+    private final ActorRef<DnaAnalysisMaster.Command> replyTo;
+
+    public DnaAnalysisMessage(List<MasterGuardian.CsvEntry> csvEntries, Integer thisPersonIndex, ActorRef<DnaAnalysisMaster.Command> replyTo) {
+      this.csvEntries = csvEntries;
+      this.thisPersonIndex = thisPersonIndex;
+      this.replyTo = replyTo;
+    }
+  }
+
+  public static final class HashMiningMessage implements WorkCommand, RemoteSerializable {
+    Integer partnerId;
+    Integer id;
+    Integer prefix;
+    private final ActorRef<HashMiningMaster.Command> replyTo;
+
+    public HashMiningMessage(Integer partnerId, Integer id, Integer prefix, ActorRef<HashMiningMaster.Command> replyTo) {
+      this.partnerId = partnerId;
+      this.id = id;
+      this.prefix = prefix;
       this.replyTo = replyTo;
     }
   }
@@ -58,49 +86,71 @@ public class Worker extends AbstractBehavior<Worker.WorkCommand> {
     return newReceiveBuilder()
             .onMessage(HashMessage.class, this::onHashMessage)
             .onMessage(LinearCombinationMessage.class, this::onLinearCombinationMessage)
+            .onMessage(DnaAnalysisMessage.class, this::onDnaAnalysisMessage)
+            .onMessage(HashMiningMessage.class, this::onHashMiningMessage)
             .build();
   }
 
   private Behavior<WorkCommand> onLinearCombinationMessage(LinearCombinationMessage command) {
-    getContext().getLog().info("Received LinearCombinationMessage {} to {}!", command.rangeFrom, command.rangeTo);
+    getContext().getLog().debug("Received LinearCombinationMessage {} to {}!", command.rangeFrom, command.rangeTo);
 
     long t = System.currentTimeMillis();
     int [] prefixes = AnalyzeUtils.solve(command.passwords, command.rangeFrom, command.rangeTo);
-    getContext().getLog().info("solving took: " + (System.currentTimeMillis() - t));
+    getContext().getLog().debug("solving took: " + (System.currentTimeMillis() - t));
     if (prefixes.length > 0) {
+      getContext().getLog().info("found prefixes: " + Arrays.toString(prefixes));
       command.replyTo.tell(new LinearCombinationMaster.PrefixesFound(prefixes));
     } else {
-      command.replyTo.tell(new LinearCombinationMaster.PrefixesNotFound(command.rangeFrom, command.rangeTo));
+      command.replyTo.tell(new LinearCombinationMaster.PrefixesNotFound());
     }
     return this;
   }
 
   private Behavior<WorkCommand> onHashMessage(HashMessage command) {
-    getContext().getLog().info("Received hash message {}!", command.passwordHash);
-    Integer pw = crackPassword(command.passwordHash);
-    command.replyTo.tell(new PasswordCrackingMaster.CrackedPasswordMessage(command.id, command.name, pw));
-    return this;
-  }
-
-/*  private Behavior<WorkCommand> onCrackedPasswordMessage(HashMessage command) {
-    getContext().getLog().info("Received crackedPassword message {}!", command.passwordHash);
-    Integer pw = crackPassword(command.passwordHash);
-    command.replyTo.tell(new PasswordCrackingMaster.CrackedPasswordMessage(command.id, command.name, pw));
-    return this;
-  }*/
-
-
-
-  private Integer crackPassword(String hash) {
+    getContext().getLog().debug("Received hash message {}!", command.passwordHash);
+    int pw;
     try {
-      getContext().getLog().info("attempting to crack password for hash " + hash);
-      return AnalyzeUtils.unhash(hash);
+      getContext().getLog().debug("attempting to crack password for hash " + command.passwordHash);
+      pw = AnalyzeUtils.unhash(command.passwordHash);
     } catch (RuntimeException e) {
-      getContext().getLog().info("cracking failed for hash  " + hash);
-      return 0;
+      getContext().getLog().debug("cracking failed for hash  " + command.passwordHash);
+      pw = 0;
     }
+    command.replyTo.tell(new PasswordCrackingMaster.CrackedPasswordMessage(command.id, command.name, pw));
+    return this;
   }
 
+  private Behavior<WorkCommand> onDnaAnalysisMessage(DnaAnalysisMessage command) {
+    getContext().getLog().debug("Received DnaAnalysisMessage {}!", command.thisPersonIndex);
+    MasterGuardian.CsvEntry thisPerson = command.csvEntries.get(command.thisPersonIndex);
+
+    Integer partner = AnalyzeUtils.longestOverlapPartner(
+          command.thisPersonIndex,
+          command.csvEntries.stream()
+          .map(e -> e.gene)
+          .collect(Collectors.toList())
+    ) + 1;
+
+    command.replyTo.tell(new DnaAnalysisMaster.AnalysedDnaMessage(
+          thisPerson.id,
+          thisPerson.name,
+          partner,
+          thisPerson.passwordHash
+          ));
+    return this;
+  }
+
+  private Behavior<WorkCommand> onHashMiningMessage(HashMiningMessage command) {
+    getContext().getLog().debug("Received HashMiningMessage {}!", command.id);
+    String prefix = command.prefix > 0 ? "1" : "0";
+    String hash = AnalyzeUtils.findHash(command.partnerId, prefix, 5);
+
+    command.replyTo.tell(new HashMiningMaster.MinedHashMessage(
+          command.id,
+          hash
+    ));
+    return this;
+  }
 }
 
 

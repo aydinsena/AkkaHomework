@@ -22,7 +22,11 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
     private ActorRef<Worker.WorkCommand> workers;
     private ActorRef<PasswordCrackingMaster.Command> passwordCrackingMaster;
     private ActorRef<LinearCombinationMaster.Command> linearCombinationMaster;
+    private ActorRef<DnaAnalysisMaster.Command> dnaAnalysisMaster;
     private ActorRef<HashMiningMaster.Command> hashMiningMaster;
+
+    private List<ActorRef<SlaveGuardian.Command>> slaveGuardians;
+    private Start startCommand;
 
 
     public static final class CsvEntry implements akka.actor.NoSerializationVerificationNeeded {
@@ -43,10 +47,12 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
     public static class Start implements Command {//}, akka.actor.NoSerializationVerificationNeeded {
         public final List<MasterGuardian.CsvEntry> csvEntries;
         private final int numWorkers;
+        private final int numSlaveSystems;
 
-        public Start(List<MasterGuardian.CsvEntry> csvEntries, int numWorkers) {
+        public Start(List<MasterGuardian.CsvEntry> csvEntries, int numLocalWorkers, int numSlaveSystems) {
             this.csvEntries = csvEntries;
-            this.numWorkers = numWorkers;
+            this.numWorkers = numLocalWorkers;
+            this.numSlaveSystems = numSlaveSystems;
         }
     }
 
@@ -61,8 +67,6 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
         }
     }
 
-    private List<ActorRef<SlaveGuardian.Command>> slaveGuardians;
-
     public static Behavior<Command> create() {
         return Behaviors.setup(MasterGuardian::new);
     }
@@ -70,7 +74,7 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
     private MasterGuardian(ActorContext<Command> context) {
         super(context);
         slaveGuardians = new ArrayList<>();
-        ActorRef<MasterGuardian.AddWorker> dummy = context.spawn(AddWorkerProxy.create(context.getSelf()), "add-worker-proxy");
+        context.spawn(AddWorkerProxy.create(context.getSelf()), "add-worker-proxy");
         context.getLog().info("created " + context.getSelf().toString());
     }
 
@@ -85,7 +89,6 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
 
     //This is executed when start message is received: passwordCrackingMaster is created in this case
     private Behavior<Command> onStart(Start command) {
-        //TODO: read CSV
         //#create-worker pool
         PoolRouter<Worker.WorkCommand> pool =
                 Routers.pool(
@@ -96,6 +99,7 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
         getContext().getSystem().receptionist().tell(Receptionist.register(serviceKey, localWorkerPool));
         GroupRouter<Worker.WorkCommand> group = Routers.group(serviceKey);
         workers = getContext().spawn(group, "worker-group");
+        startCommand = command;
 
         //create-HashMiningMaster
         hashMiningMaster =
@@ -109,17 +113,33 @@ public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
         //#create-PasswordCrackingMaster
         passwordCrackingMaster =
                 getContext().spawn(PasswordCrackingMaster.create(workers, linearCombinationMaster), "passwordCrackingMaster");
-        //after creating PasswordCrackingMaster, sends the csv input to PasswordCrackingMaster
-        passwordCrackingMaster.tell(new PasswordCrackingMaster.CsvHashInput(command.csvEntries));
+
+        //#create-DnaAnalysisMaster
+        dnaAnalysisMaster =
+                getContext().spawn(DnaAnalysisMaster.create(workers, hashMiningMaster), "dnaAnalysisMaster");
+
+        if (this.slaveGuardians.size() >= startCommand.numSlaveSystems) {
+            //after creating PasswordCrackingMaster, sends the csv input to PasswordCrackingMaster
+            passwordCrackingMaster.tell(new PasswordCrackingMaster.CsvHashInput(command.csvEntries));
+            dnaAnalysisMaster.tell(new DnaAnalysisMaster.CsvHashInput(command.csvEntries));
+        } else {
+            getContext().getLog().info("start command received, waiting for {} more slave systems to join", startCommand.numSlaveSystems - this.slaveGuardians.size());
+        }
 
         return this;
     }
 
     private Behavior<Command> onAddWorker(AddWorker command) {
-        //TODO add worker to pool
         getContext().getLog().info("registering new worker");
         slaveGuardians.add(command.slaveGuardian);
         getContext().getSystem().receptionist().tell(Receptionist.register(serviceKey, command.worker));
+
+        if (startCommand!=null && slaveGuardians.size() >= startCommand.numSlaveSystems) {
+            getContext().getLog().info("{} slave systems joined, starting.", slaveGuardians.size());
+            //after creating PasswordCrackingMaster, sends the csv input to PasswordCrackingMaster
+            passwordCrackingMaster.tell(new PasswordCrackingMaster.CsvHashInput(startCommand.csvEntries));
+            dnaAnalysisMaster.tell(new DnaAnalysisMaster.CsvHashInput(startCommand.csvEntries));
+        }
         return this;
     }
 
