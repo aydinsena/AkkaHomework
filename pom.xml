@@ -84,7 +84,7 @@
                     <arguments>
                         <argument>-classpath</argument>
                         <classpath />
-                        <argument>com.sena.akka.homework.actor.AkkaStart</argument>
+                        <argument>com.sena.akka.homework.AkkaStart</argument>
                     </arguments>
                 </configuration>
             </plugin>
@@ -103,7 +103,7 @@
                             <transformers>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.sena.akka.homework.actor.AkkaStart</mainClass>
+                                    <mainClass>com.sena.akka.homework.AkkaStart</mainClass>
                                 </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
                                     <resource>reference.conf</resource>

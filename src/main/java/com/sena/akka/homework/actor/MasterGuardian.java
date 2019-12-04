@@ -14,7 +14,7 @@ import java.util.List;
 
 public class MasterGuardian extends AbstractBehavior<MasterGuardian.Command> {
 
-    protected interface Command {
+    public interface Command {
 
     }
 

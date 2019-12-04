@@ -14,7 +14,7 @@ import java.util.concurrent.ExecutionException;
 public class SlaveGuardian extends AbstractBehavior<SlaveGuardian.Command> {
 
 
-    protected interface Command {
+    public interface Command {
 
     }
 

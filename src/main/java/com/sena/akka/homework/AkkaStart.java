@@ -1,10 +1,12 @@
-package com.sena.akka.homework.actor;
+package com.sena.akka.homework;
 
 import akka.actor.typed.ActorSystem;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.sena.akka.homework.actor.MasterGuardian;
+import com.sena.akka.homework.actor.SlaveGuardian;
 import com.sena.akka.homework.utils.AkkaUtils;
 import com.sena.akka.homework.utils.CsvUtils;
 import com.typesafe.config.Config;
@@ -12,6 +14,8 @@ import com.typesafe.config.Config;
 
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 
 public class AkkaStart {
@@ -21,8 +25,8 @@ public class AkkaStart {
     SlaveCommand slaveCommand = new SlaveCommand();
 
     JCommander jCommander = JCommander.newBuilder()
-            .addCommand("master", new MasterCommand())
-            .addCommand("slave", new SlaveCommand())
+            .addCommand("master", masterCommand)
+            .addCommand("slave", slaveCommand)
             .build();
 
     try {
@@ -61,7 +65,7 @@ public class AkkaStart {
   private static void startMaster(MasterCommand masterCommand) {
     final List<MasterGuardian.CsvEntry> csv = CsvUtils.readCsvAsCsvEntries(masterCommand.fileName);
 
-    String host = "localhost";
+    String host = getDefaultHost();
     //TODO: find free port when running multiple slaves
     int port = 4567;
 
@@ -85,7 +89,7 @@ public class AkkaStart {
 //when slave is created--> create SlaveGuardian and tell slaveGuardian proxyPath
 
   private static void startSlave(SlaveCommand slaveCommand) {
-    String host = "localhost";
+    String host = getDefaultHost();
     //finds free port
     int port = 0;
 
@@ -125,5 +129,13 @@ public class AkkaStart {
 
     @Parameter(names = {"-h", "--host"}, description = "IP of the host system")
     String host = "localhost";
+  }
+
+  private static String getDefaultHost() {
+    try {
+      return InetAddress.getLocalHost().getHostAddress();
+    } catch (UnknownHostException e) {
+      return "localhost";
+    }
   }
 }
